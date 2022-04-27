@@ -10,6 +10,8 @@
    (position-list :accessor position-list :initarg :position-list :initform nil :documentation "")
    (bar-length :accessor bar-length :initform 0 :type integer)
    (beat-length :accessor beat-length :initform 0 :type integer)
+   (voices :accessor voices :initform 12 :type integer)
+   (style :accessor style :initform "None" :type string)
    (min-note-length :accessor min-note-length :initform nil :type integer)
    (max-note-length :accessor max-note-length :initform nil :type integer)
    (key-selection :accessor key-selection :initform nil :type string)
@@ -28,7 +30,12 @@
 
 (om::defclass! search ()
   ;attributes
-  ((block-csp :accessor block-csp :initarg :block-csp :initform nil)
+  (
+    (block-csp :accessor block-csp :initarg :block-csp :initform nil)
+    (solution :accessor solution :initarg :solution :initform nil :documentation "The current solution of the CSP in the form of a voice object.")
+    (result :accessor result
+      :result :initform (list) :documentation 
+      "A temporary list holder to store the result of the call to the CSPs, shouldn't be touched.")
   )
   (:icon 225)
   (:documentation "This class implements Melodizer.
@@ -176,6 +183,44 @@
       :range '(0 1 2 3)
       :di-action #'(lambda (m)
         (setf (bar-length (om::object editor)) (nth (om::om-get-selected-item-index m) (om::om-get-item-list m)))
+      )
+    )
+
+    (om::om-make-dialog-item
+      'om::om-static-text
+      (om::om-make-point 15 150)
+      (om::om-make-point 200 20)
+      "Voices"
+      :font om::*om-default-font1b*
+    )
+
+    (om::om-make-dialog-item
+      'om::pop-up-menu
+      (om::om-make-point 170 150)
+      (om::om-make-point 200 20)
+      "Voices"
+      :range '(1 2 3 4 5 6 7 8 9 10 11 12)
+      :di-action #'(lambda (m)
+        (setf (voices (om::object editor)) (nth (om::om-get-selected-item-index m) (om::om-get-item-list m)))
+      )
+    )
+
+    (om::om-make-dialog-item
+      'om::om-static-text
+      (om::om-make-point 15 200)
+      (om::om-make-point 200 20)
+      "Style"
+      :font om::*om-default-font1b*
+    )
+
+    (om::om-make-dialog-item
+      'om::pop-up-menu
+      (om::om-make-point 170 200)
+      (om::om-make-point 200 20)
+      "Style"
+      :range '("None" "Full chords" "Arpeggio" "Hybrid")
+      :di-action #'(lambda (m)
+        (setf (style (om::object editor)) (nth (om::om-get-selected-item-index m) (om::om-get-item-list m)))
       )
     )
   )
@@ -429,6 +474,44 @@
       :font om::*om-default-font1b*
     )
 
-    
+    (om::om-make-dialog-item
+      'om::om-button
+      (om::om-make-point 15 50) ; position (horizontal, vertical)
+      (om::om-make-point 130 20) ; size (horizontal, vertical)
+      "Start"
+      :di-action #'(lambda (b)
+        (let init
+          (setq init (new-melodizer (block-csp (om::object editor))))
+          (setf (result (om::object editor)) init)
+        )
+      )
+    )
+
+    (om::om-make-dialog-item
+      'om::om-button
+      (om::om-make-point 160 50) ; position
+      (om::om-make-point 130 20) ; size
+      "Next"
+      :di-action #'(lambda (b)
+        (if (typep (result (om::object editor)) 'null); if the problem is not initialized
+          (error "The problem has not been initialized. Please set the input and press Start.")
+        )
+        (print "Searching for the next solution")
+        ;reset the boolean because we want to continue the search
+        (setf (stop-search (om::object editor)) nil)
+        ;get the next solution
+        (mp:process-run-function ; start a new thread for the execution of the next method
+          "next thread" ; name of the thread, not necessary but useful for debugging
+          nil ; process initialization keywords, not needed here
+          (lambda () ; function to call
+            (setf (solution (om::object editor)) (new-search-next (result (om::object editor)) (om::object editor)))
+            (setf (om::tempo (solution (om::object editor))) (om::tempo (input-rhythm (om::object editor)))); set the tempo of the new voice object to be the same as the input
+            (om::openeditorframe ; open a voice window displaying the solution
+              (om::omNG-make-new-instance (solution (om::object editor)) "current solution")
+            )
+          )
+        )
+      )
+    )
   )
 )
