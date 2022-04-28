@@ -12,6 +12,8 @@
    (beat-length :accessor beat-length :initform 0 :type integer)
    (voices :accessor voices :initform 12 :type integer)
    (style :accessor style :initform "None" :type string)
+   (min-added-note :accessor min-added-note :initform nil :type integer)
+   (max-added-note :accessor max-added-note :initform nil :type integer)
    (min-note-length :accessor min-note-length :initform nil :type integer)
    (max-note-length :accessor max-note-length :initform nil :type integer)
    (key-selection :accessor key-selection :initform nil :type string)
@@ -34,7 +36,7 @@
     (block-csp :accessor block-csp :initarg :block-csp :initform nil)
     (solution :accessor solution :initarg :solution :initform nil :documentation "The current solution of the CSP in the form of a voice object.")
     (result :accessor result
-      :result :initform (list) :documentation 
+      :result :initform (list) :documentation
       "A temporary list holder to store the result of the call to the CSPs, shouldn't be touched.")
   )
   (:icon 225)
@@ -221,6 +223,50 @@
       :range '("None" "Full chords" "Arpeggio" "Hybrid")
       :di-action #'(lambda (m)
         (setf (style (om::object editor)) (nth (om::om-get-selected-item-index m) (om::om-get-item-list m)))
+      )
+    )
+
+    (om::om-make-dialog-item
+      'om::om-static-text
+      (om::om-make-point 15 250)
+      (om::om-make-point 200 20)
+      "Minimum added notes"
+      :font om::*om-default-font1b*
+    )
+
+    (om::om-make-dialog-item
+      'om::pop-up-menu
+      (om::om-make-point 170 250)
+      (om::om-make-point 200 20)
+      "Minimum added notes"
+      :range (append '("None") (loop :for n :from 0 :upto 100 collect n))
+      :di-action #'(lambda (m)
+        (setq check (nth (om::om-get-selected-item-index m) (om::om-get-item-list m)))
+        (if (typep check 'string)
+          (setf (min-added-note (om::object editor)) 0)
+          (setf (min-added-note (om::object editor)) check))
+      )
+    )
+
+    (om::om-make-dialog-item
+      'om::om-static-text
+      (om::om-make-point 15 300)
+      (om::om-make-point 200 20)
+      "Maximum added notes"
+      :font om::*om-default-font1b*
+    )
+
+    (om::om-make-dialog-item
+      'om::pop-up-menu
+      (om::om-make-point 170 300)
+      (om::om-make-point 200 20)
+      "Maximum added notes"
+      :range (append '("None") (loop :for n :from 100 :downto 0 collect n))
+      :di-action #'(lambda (m)
+        (setq check (nth (om::om-get-selected-item-index m) (om::om-get-item-list m)))
+        (if (typep check 'string)
+          (setf (max-added-note (om::object editor)) nil)
+          (setf (max-added-note (om::object editor)) check))
       )
     )
   )
