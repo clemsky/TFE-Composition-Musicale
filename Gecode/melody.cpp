@@ -18,7 +18,7 @@ class Melody : public Script {
 private:
 
   const int bars = 4;
-  const int quantification = 48;
+  const int quantification = 4*48;
 
   SetVarArray push;
   SetVarArray pull;
@@ -43,7 +43,7 @@ public:
 
       int scaleSize = sizeof(majorNatural)/sizeof(int);
       int progressionSize = sizeof(progression)/sizeof(int);
-      
+
 
       rel(*this, pull[0] == IntSet::empty);
       rel(*this, push[bars*quantification] == IntSet::empty);
@@ -52,17 +52,17 @@ public:
 
       for(int i = 1; i <= bars*quantification; i++){
         // Notes that are playing
-        rel(*this, playing[i] == ((playing[i-1] - pull[i]) | push[i])); 
+        rel(*this, playing[i] == ((playing[i-1] - pull[i]) | push[i]));
         // Cannot pull a note not playing
         rel(*this, pull[i] <= playing[i-1]);
         // Cannot push a note still playing
-        rel(*this, push[i] || (playing[i-1] - pull[i])); 
+        rel(*this, push[i] || (playing[i-1] - pull[i]));
       }
 
       cardinality(*this, playing, 0, 5);
       cardinality(*this, pull, 0, 10);
       cardinality(*this, push, 0, 10);
-      
+
 
       // Following a scale
 
@@ -88,7 +88,7 @@ public:
         std::vector<int> v;
         for (int octave = 0; octave < 11; octave++){
           int offset = 0;
-          for (int j = 0; j<scaleSize; j++){          
+          for (int j = 0; j<scaleSize; j++){
             if (j == progression[i]-1){
               v.push_back(octave*12+offset);
             } else if (j == (progression[i]+1)%scaleSize){
@@ -122,7 +122,7 @@ public:
       /* int maxlength = 24;
       for (int i = 0; i < bars*quantification; i++){
         for (int j = 1; j < maxlength && i+j < bars*quantification ; j++){
-          
+
         }
       }  */
 
@@ -134,7 +134,7 @@ public:
           cardinality(*this, push[i], 0, 1);
         }
       }
-        
+
       Rnd r1(opt.seed());
       r1.time();
       Rnd r2(opt.seed());
@@ -145,7 +145,7 @@ public:
         branch(*this, pull[i], SET_VAL_RND_INC(r2));
       }
 
-      
+
 
   }
 

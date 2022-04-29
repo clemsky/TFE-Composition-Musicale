@@ -16,6 +16,8 @@
    (max-added-note :accessor max-added-note :initform nil :type integer)
    (min-note-length :accessor min-note-length :initform nil :type integer)
    (max-note-length :accessor max-note-length :initform nil :type integer)
+   (quantification :accessor quantification :initform nil :type string)
+   (note-repartition :accessor note-repartition :initform nil :type integer)
    (key-selection :accessor key-selection :initform nil :type string)
    (mode-selection :accessor mode-selection :initform nil :type string)
    (chord-key :accessor chord-key :initform nil :type string)
@@ -261,7 +263,7 @@
       (om::om-make-point 170 300)
       (om::om-make-point 200 20)
       "Maximum added notes"
-      :range (append '("None") (loop :for n :from 100 :downto 0 collect n))
+      :range (append '("None") (loop :for n :from 0 :upto 100 collect n))
       :di-action #'(lambda (m)
         (setq check (nth (om::om-get-selected-item-index m) (om::om-get-item-list m)))
         (if (typep check 'string)
@@ -324,6 +326,46 @@
       :range (loop :for n :from 127 :downto 0 collect n)
       :di-action #'(lambda (m)
         (setf (max-note-length (om::object editor)) (nth (om::om-get-selected-item-index m) (om::om-get-item-list m)))
+      )
+    )
+
+    (om::om-make-dialog-item
+      'om::om-static-text
+      (om::om-make-point 15 150)
+      (om::om-make-point 200 20)
+      "Quantification"
+      :font om::*om-default-font1b*
+    )
+
+    (om::om-make-dialog-item
+      'om::pop-up-menu
+      (om::om-make-point 170 150)
+      (om::om-make-point 200 20)
+      "Quantification"
+      :range '("1 bar" "1/2 bar" "1 beat" "1/2 beat" "1/4 beat" "1/8 beat" "1/6 beat" "1/3 bar" "1/6 bar" "1/3 beat" "1/6 beat" "1/12 beat")
+      :di-action #'(lambda (m)
+        (setf (quantification (om::object editor)) (nth (om::om-get-selected-item-index m) (om::om-get-item-list m)))
+      )
+    )
+
+    (om::om-make-dialog-item
+      'om::om-static-text
+      (om::om-make-point 15 200)
+      (om::om-make-point 200 20)
+      "Note repartition"
+      :font om::*om-default-font1b*
+    )
+
+    ; slider to express how different the solutions should be (100 = completely different, 1 = almost no difference)
+    (om::om-make-dialog-item
+      'om::om-slider
+      (om::om-make-point 170 200)
+      (om::om-make-point 200 20); size
+      "Note repartition"
+      :range '(1 100)
+      :increment 1
+      :di-action #'(lambda (s)
+        (setf (note-repartition (om::object editor)) (om::om-slider-value s))
       )
     )
   )
