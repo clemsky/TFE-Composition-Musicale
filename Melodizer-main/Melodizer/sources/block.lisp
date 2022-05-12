@@ -476,7 +476,10 @@
       "Chord key"
       :range '("None" "C" "C#" "D" "Eb" "E" "F" "F#" "G" "Ab" "A" "Bb" "B")
       :di-action #'(lambda (m)
-        (setf (chord-key (om::object editor)) (nth (om::om-get-selected-item-index m) (om::om-get-item-list m)))
+        (setq check (nth (om::om-get-selected-item-index m) (om::om-get-item-list m)))
+        (if (string= check "None")
+          (setf (chord-key (om::object editor)) nil)
+          (setf (chord-key (om::object editor)) check))
       )
     )
 
@@ -495,12 +498,12 @@
       "Chord quality"
       :range '("None" "Major" "Minor" "Augmented" "Diminished" "Major 7" "Minor 7" "Dominant 7" "Minor 7 flat 5" "Diminished 7" "Minor-major 7"
         "Major 9" "Minor 9" "9 Augmented 5" "9 flatted 5" "7 flat 9" "Augmented 9" "Minor 11" "Major 11" "Dominant 11" "Dominant # 11" "Major # 11")
-        :di-action #'(lambda (m)
-          (setq check (nth (om::om-get-selected-item-index m) (om::om-get-item-list m)))
-          (if (string= check "None")
-            (setf (chord-quality (om::object editor)) nil)
-            (setf (chord-quality (om::object editor)) check))
-        )
+      :di-action #'(lambda (m)
+        (setq check (nth (om::om-get-selected-item-index m) (om::om-get-item-list m)))
+        (if (string= check "None")
+          (setf (chord-quality (om::object editor)) nil)
+          (setf (chord-quality (om::object editor)) check))
+      )
     )
 
     (om::om-make-dialog-item

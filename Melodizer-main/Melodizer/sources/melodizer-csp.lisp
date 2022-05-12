@@ -120,7 +120,6 @@
 
 
         ;compute notes
-        (setq n (gil::add-int-var sp 0 max-notes))
         (setq notes (gil::add-int-var sp 0 max-notes))
         (setq notes-array (gil::add-int-var-array sp (* bars quant) 0 127))
         (loop :for i :from 0 :below (* bars quant) :by 1 :do
@@ -217,7 +216,7 @@
         )
 
         ;constraints
-        (post-optional-constraints sp block-csp push pull playing pushMap notes added-notes n)
+        (post-optional-constraints sp block-csp push pull playing pushMap notes added-notes)
 
         (pitch-range sp push (min-pitch block-csp) (max-pitch block-csp))
         (list push pull playing notes added-notes)
@@ -226,7 +225,8 @@
 
 ;posts the optional constraints specified in the list
 ; TODO CHANGE LATER SO THE FUNCTION CAN BE CALLED FROM THE STRING IN THE LIST AND NOT WITH A SERIES OF IF STATEMENTS
-(defun post-optional-constraints (sp block push pull playing pushMap notes added-notes n)
+(defun post-optional-constraints (sp block push pull playing pushMap notes added-notes)
+
 
     ; Block constraints
     (if (voices block)
@@ -234,14 +234,12 @@
     )
 
     (if (min-added-notes block)
-        (gil::g-rel sp added-notes gil::SRT_GQ (min-added-notes block))
+        (gil::g-rel sp added-notes gil::IRT_GQ (min-added-notes block))
     )
 
-    (print (max-added-notes block))
     (if (max-added-notes block)
-        (gil::g-rel sp n gil::SRT_LQ (max-added-notes block))
+        (gil::g-rel sp added-notes gil::IRT_LQ (max-added-notes block))
     )
-    (print "here")
 
     ; Time constraints
     (if (min-note-length block)
@@ -259,6 +257,7 @@
                   (scale (get-scale (mode-selection block)))  ;if - mode selectionné
                   (offset (- (name-to-note-value (key-selection block)) 60)))
                  (setf scaleset (build-scaleset scale offset))
+                 (print scaleset)
                  (gil::g-rel sp bool gil::SRT_EQ 1) ;forcer le reify a true dans ce cas
                  (scale-follow-reify sp push scaleset bool))
             (let ((bool (gil::add-bool-var sp 0 1)) ; créer le booleen pour la reify
@@ -273,12 +272,14 @@
                 (loop :for key :from 0 :below 12 :by 1 :do
                     (setf scale (get-scale (mode-selection block)))
                     (setf scaleset (build-scaleset scale key))
+                    (print scaleset)
                     (scale-follow-reify sp push scaleset (nth key bool-array))
                 )
                 (gil::g-rel sp gil::BOT_OR bool-array 1)
             )
         )
     )
+
 
     (if (chord-key block)
         (if (chord-quality block)
@@ -301,7 +302,7 @@
         )
     )
 
-    (print (pitch-direction block))
+
     (if (pitch-direction block)
         (let ((allPlayed (gil::add-set-var sp 0 (+ (length push) 1) 0 (+ (length push) 1)))
               (isPlayed (gil::add-bool-var-array sp (+ (length push) 1) 0 1)))

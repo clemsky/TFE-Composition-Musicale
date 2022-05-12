@@ -278,7 +278,6 @@
         )
     )
 )
-"9 flatted 5" "7 flat 9" "Augmented 9" "Minor 11" "Major 11" "Dominant 11" "Dominant # 11" "Major # 11"
 
 ; function to get all of a given note (e.g. C)
 (defun get-all-notes (note)
@@ -406,7 +405,7 @@
 
 ; Create push and pull list from a voice object
 (defun create-push-pull (input-chords quant)
-    (let (temp 
+    (let (temp
          (next 0)
          (push (list))
          (pull (list '-1))
