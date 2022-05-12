@@ -13,8 +13,8 @@
    (beat-length :accessor beat-length :initform 0 :type integer)
    (voices :accessor voices :initform nil :type integer)
    (style :accessor style :initform nil :type string)
-   (min-added-note :accessor min-added-note :initform nil :type integer)
-   (max-added-note :accessor max-added-note :initform nil :type integer)
+   (min-added-notes :accessor min-added-notes :initform nil :type integer)
+   (max-added-notes :accessor max-added-notes :initform nil :type integer)
    (min-note-length :accessor min-note-length :initform nil :type integer)
    (max-note-length :accessor max-note-length :initform nil :type integer)
    (quantification :accessor quantification :initform nil :type string)
@@ -272,8 +272,8 @@
       :di-action #'(lambda (m)
         (setq check (nth (om::om-get-selected-item-index m) (om::om-get-item-list m)))
         (if (typep check 'string)
-          (setf (min-added-note (om::object editor)) 0)
-          (setf (min-added-note (om::object editor)) check))
+          (setf (min-added-notes (om::object editor)) 0)
+          (setf (min-added-notes (om::object editor)) check))
       )
     )
 
@@ -294,8 +294,8 @@
       :di-action #'(lambda (m)
         (setq check (nth (om::om-get-selected-item-index m) (om::om-get-item-list m)))
         (if (typep check 'string)
-          (setf (max-added-note (om::object editor)) nil)
-          (setf (max-added-note (om::object editor)) check))
+          (setf (max-added-notes (om::object editor)) nil)
+          (setf (max-added-notes (om::object editor)) check))
       )
     )
   )
@@ -495,9 +495,12 @@
       "Chord quality"
       :range '("None" "Major" "Minor" "Augmented" "Diminished" "Major 7" "Minor 7" "Dominant 7" "Minor 7 flat 5" "Diminished 7" "Minor-major 7"
         "Major 9" "Minor 9" "9 Augmented 5" "9 flatted 5" "7 flat 9" "Augmented 9" "Minor 11" "Major 11" "Dominant 11" "Dominant # 11" "Major # 11")
-      :di-action #'(lambda (m)
-        (setf (chord-key (om::object editor)) (nth (om::om-get-selected-item-index m) (om::om-get-item-list m)))
-      )
+        :di-action #'(lambda (m)
+          (setq check (nth (om::om-get-selected-item-index m) (om::om-get-item-list m)))
+          (if (string= check "None")
+            (setf (chord-quality (om::object editor)) nil)
+            (setf (chord-quality (om::object editor)) check))
+        )
     )
 
     (om::om-make-dialog-item
@@ -509,13 +512,14 @@
     )
 
     (om::om-make-dialog-item
-      'om::pop-up-menu
+      'om::slider
       (om::om-make-point 170 250)
       (om::om-make-point 200 20)
       "Minimum pitch"
-      :range (loop :for n :from 1 :upto 127 collect n)
-      :di-action #'(lambda (m)
-        (setf (min-pitch (om::object editor)) (nth (om::om-get-selected-item-index m) (om::om-get-item-list m)))
+      :range '(1 127)
+      :increment 1
+      :di-action #'(lambda (s)
+        (setf (min-pitch (om::object editor)) (om::om-slider-value s))
       )
     )
 
@@ -528,13 +532,14 @@
     )
 
     (om::om-make-dialog-item
-      'om::pop-up-menu
+      'om::slider
       (om::om-make-point 170 300)
       (om::om-make-point 200 20)
       "Maximum pitch"
-      :range (loop :for n :from 127 :downto 1 collect n)
-      :di-action #'(lambda (m)
-        (setf (max-pitch (om::object editor)) (nth (om::om-get-selected-item-index m) (om::om-get-item-list m)))
+      :range '(1 127)
+      :increment 1
+      :di-action #'(lambda (s)
+        (setf (max-pitch (om::object editor)) (om::om-slider-value s))
       )
     )
 
@@ -553,7 +558,10 @@
        "Pitch direction"
        :range '("None" "Mostly increasing" "Increasing" "Strictly increasing" "Mostly decreasing" "Decreasing" "Strictly decreasing")
        :di-action #'(lambda (m)
-         (setf (pitch-direction (om::object editor)) (nth (om::om-get-selected-item-index m) (om::om-get-item-list m)))
+         (setq check (nth (om::om-get-selected-item-index m) (om::om-get-item-list m)))
+         (if (string= check "None")
+           (setf (pitch-direction (om::object editor)) nil)
+           (setf (pitch-direction (om::object editor)) check))
        )
     )
 

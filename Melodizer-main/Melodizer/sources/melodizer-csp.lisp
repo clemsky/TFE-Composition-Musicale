@@ -32,47 +32,8 @@
         (setq push (nth 0 temp))
         (setq pull (nth 1 temp))
         (setq playing (nth 2 temp))
-
-
-
-        ;initialize the variables
-        ;(setq push (gil::add-set-var-array sp (* bars quant) 0 max-pitch 0 max-pitch))
-        ;(setq pull (gil::add-set-var-array sp (* bars quant) 0 max-pitch 0 max-pitch))
-        ;(setq playing (gil::add-set-var-array sp (* bars quant) 0 max-pitch 0 max-pitch))
-
-        ;channeling array with time as index to array with pitch as index
-        ;(setq pushMap (gil::add-set-var-array sp (+ max-pitch 1) 0 (* bars quant) 0 (* bars quant)))
-        ;(setq pullMap (gil::add-set-var-array sp (+ max-pitch 1) 0 (* bars quant) 0 (* bars quant)))
-        ;(gil::g-channel sp push pushMap)
-        ;(gil::g-channel sp pull pullMap)
-
-        ;initial constraint on pull, push and playing
-        ;(gil::g-empty sp (first pull)) ; pull[0] == empty
-        ;(gil::g-empty sp (car (last push)))  ; push[bars*quant] == empty
-        ;(gil::g-rel sp (first push) gil::SRT_EQ (first playing)) ; push[0] == playing [0]
-
-        ;connect push, pull and playing
-        ;(loop :for j :from 1 :below (* bars quant) :do ;for each interval
-        ;    (let (temp)
-        ;        (setq temp (gil::add-set-var sp 0 max-pitch 0 max-pitch)); temporary variables
-        ;
-        ;        (gil::g-op sp (nth (- j 1) playing) gil::SOT_MINUS (nth j pull) temp); temp[0] = playing[j-1] - pull[j]
-        ;        (gil::g-op sp temp gil::SOT_UNION (nth j push) (nth j playing)); playing[j] == playing[j-1] - pull[j] + push[j] Playing note
-        ;
-        ;        (gil::g-rel sp (nth j pull) gil::SRT_SUB (nth (- j 1) playing)) ; pull[j] <= playing[j-1] cannot pull a note not playing
-        ;
-        ;        (gil::g-set-op sp (nth (- j 1) playing) gil::SOT_UNION (nth j pull) gil::SRT_DISJ (nth j push)); push[j] || playing[j-1] + pull[j] Cannot push a note still playing
-        ;    )
-        ;)
-
-
-
-        ;Following a chord progression
-        ;(loop :for j :from 0 :below (length chordset) :by 1 :do
-        ;    (loop :for k :from 0 :below (/ (* bars quant) progsize) :by 1 :do
-        ;        (gil::g-rel sp (nth (+ k (/ (* (* bars quant) j) progsize)) push) gil::SRT_SUB (nth j chordset))
-        ;    )
-        ;)
+        (setq notes (nth 3 temp))
+        (setq added-notes (nth 4 temp))
 
         ; chord rhythm
         ;(loop :for j :from 0 :below (* bars quant) :by 1 :do
@@ -110,7 +71,7 @@
 
         (print "new-melodizer CSP constructed")
         ; return
-        (list se push pull tstop sopts bars quant)
+        (list se push pull tstop sopts bars quant notes added-notes)
     )
 )
 
@@ -119,13 +80,14 @@
     ; (pull supersets de get-sub-block-values(block) )
     ; constraints
     ; return pull push playing
-    (let (pull push playing pushMap pullMap block-list positions
+    (let (pull push playing pushMap pullMap block-list positions max-notes
          (bars (bar-length block-csp))
          (quant 192)
          (major-natural (list 2 2 1 2 2 2 1))
          (max-pitch 127))
          ;(setf scaleset (build-scaleset major-natural))
 
+         (setq max-notes (* 127 (* bars quant)))
          (print bars)
          (print quant)
 
@@ -154,6 +116,26 @@
         (gil::g-empty sp (first pull)) ; pull[0] == empty
         (gil::g-empty sp (car (last push)))  ; push[bars*quant] == empty
         (gil::g-rel sp (first push) gil::SRT_EQ (first playing)) ; push[0] == playing [0]
+
+
+
+        ;compute notes
+        (setq n (gil::add-int-var sp 0 max-notes))
+        (setq notes (gil::add-int-var sp 0 max-notes))
+        (setq notes-array (gil::add-int-var-array sp (* bars quant) 0 127))
+        (loop :for i :from 0 :below (* bars quant) :by 1 :do
+            (gil::g-card-var sp (nth i push) (nth i notes-array))
+        )
+        (gil::g-sum sp notes notes-array)
+
+        ;compute added notes
+        (setq added-push (gil::add-set-var-array sp (* bars quant) 0 max-pitch 0 max-pitch))
+        (setq added-notes (gil::add-int-var sp 0 127))
+        (setq added-notes-array (gil::add-int-var-array sp (* bars quant) 0 127))
+        (loop :for i :from 0 :below (* bars quant) :by 1 :do
+            (gil::g-card-var sp (nth i added-push) (nth i added-notes-array))
+        )
+        (gil::g-sum sp added-notes added-notes-array)
 
         ;connect push, pull and playing
         (loop :for j :from 1 :below (* bars quant) :do ;for each interval
@@ -201,36 +183,75 @@
             )
         )
 
-        ; make the push and pull array supersets of the corresponding array of the child blocks
-        (loop :for i :from 0 :below (length block-list) :by 1 :do
-              (let (tempPush tempPull tempPlaying tempList (start (* (nth i positions) quant)))
-                   (setq tempList (get-sub-block-values sp (nth i block-list)))
-                   (setq tempPush (first tempList))
-                   (setq tempPull (second tempList))
-                   (setq tempPlaying (third tempList))
 
-                   (loop :for j :from start :below (+ start (length tempPlaying)) :by 1 :do
-                        (gil::g-rel sp (nth (- j start) tempPush) gil::SRT_SUB (nth j push))
-                        (gil::g-rel sp (nth (- j start) tempPull) gil::SRT_SUB (nth j pull))
-                        (gil::g-rel sp (nth (- j start) tempPlaying) gil::SRT_SUB (nth j playing))
-                   )
-              )
+        (if (not (endp block-list))
+            ; make the push and pull array supersets of the corresponding array of the child blocks
+            (let ((sub-push-list (list))
+                (sub-push (gil::add-set-var-array sp (* bars quant) 0 max-pitch 0 max-pitch)))
+
+                (loop :for i :from 0 :below (* bars quant) :by 1 :do
+                    (setq temp (gil::add-set-var-array sp (length block-list) 0 max-pitch 0 max-pitch))
+                    (setq sub-push-list (nconc sub-push-list (list temp)))
+                    (gil::g-setunion sp (nth i sub-push) (nth i sub-push-list))
+                    (gil::g-op sp (nth i added-push) gil::SOT_DUNION (nth i push) (nth i sub-push))
+                )
+                (loop :for i :from 0 :below (length block-list) :by 1 :do
+                      (let (tempPush tempPull tempPlaying tempList (start (* (nth i positions) quant)))
+                           (setq tempList (get-sub-block-values sp (nth i block-list)))
+                           (setq tempPush (first tempList))
+                           (setq tempPull (second tempList))
+                           (setq tempPlaying (third tempList))
+
+                           (loop :for j :from start :below (+ start (length tempPlaying)) :by 1 :do
+                                (gil::g-rel sp (nth (- j start) tempPush) gil::SRT_SUB (nth j push))
+                                (gil::g-rel sp (nth (- j start) tempPull) gil::SRT_SUB (nth j pull))
+                                (gil::g-rel sp (nth (- j start) tempPlaying) gil::SRT_SUB (nth j playing))
+
+                                (gil::g-rel sp (nth (- j start) tempPush) gil::SRT_EQ (nth i (nth j sub-push-list)))
+                           )
+                      )
+                )
+            )
+            ; if no block-list
+            (gil::g-rel sp added-notes gil::SRT_EQ notes)
         )
 
-
-
         ;constraints
-        (post-optional-constraints sp block-csp push pull playing pushMap)
+        (post-optional-constraints sp block-csp push pull playing pushMap notes added-notes n)
 
         (pitch-range sp push (min-pitch block-csp) (max-pitch block-csp))
-        (list push pull playing)
+        (list push pull playing notes added-notes)
     )
 )
 
 ;posts the optional constraints specified in the list
 ; TODO CHANGE LATER SO THE FUNCTION CAN BE CALLED FROM THE STRING IN THE LIST AND NOT WITH A SERIES OF IF STATEMENTS
-(defun post-optional-constraints (sp block push pull playing pushMap)
+(defun post-optional-constraints (sp block push pull playing pushMap notes added-notes n)
 
+    ; Block constraints
+    (if (voices block)
+      (gil::g-card sp playing 0 (voices block))
+    )
+
+    (if (min-added-notes block)
+        (gil::g-rel sp added-notes gil::SRT_GQ (min-added-notes block))
+    )
+
+    (print (max-added-notes block))
+    (if (max-added-notes block)
+        (gil::g-rel sp n gil::SRT_LQ (max-added-notes block))
+    )
+    (print "here")
+
+    ; Time constraints
+    (if (min-note-length block)
+        (note-min-length sp push pull (min-note-length block))
+    )
+    (if (quantification block)
+        (set-quantification sp push pull (quantification block))
+    )
+
+    ; Pitch constraints
     ; following a scale
     (if (key-selection block)
         (if (mode-selection block)
@@ -280,20 +301,6 @@
         )
     )
 
-    ; Block constraints
-    (if (voices block)
-      (gil::g-card sp playing 0 (voices block))
-    )
-
-    ; Time constraints
-    (if (min-note-length block)
-        (note-min-length sp push pull (min-note-length block))
-    )
-    (if (quantification block)
-        (set-quantification sp push pull (quantification block))
-    )
-
-    ; Pitch constraints
     (print (pitch-direction block))
     (if (pitch-direction block)
         (let ((allPlayed (gil::add-set-var sp 0 (+ (length push) 1) 0 (+ (length push) 1)))
@@ -330,6 +337,8 @@
          (sopts (fifth l))
          (bars (sixth l))
          (quant (seventh l))
+         (notes (eighth l))
+         (added-notes (ninth l))
          (check t); for the while loop
          sol score)
 
@@ -342,6 +351,8 @@
             )
         )
 
+        ; (print (gil::g-values sol notes))
+        ; (print (gil::g-values sol added-notes))
          ;créer score qui retourne la liste de pitch et la rhythm tree
 
         (setq score (build-score sol push pull bars quant (tempo melodizer-object))); store the values of the solution
